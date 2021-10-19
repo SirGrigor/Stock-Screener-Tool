@@ -1,6 +1,7 @@
 from _csv import reader
 from csv import DictReader
 
+import pandas as pd
 import requests
 import time
 from bs4 import BeautifulSoup
@@ -380,9 +381,20 @@ def get_ric(stock_data):
     return ric
 
 
+column_names = [
+    'Price',
+    'Description',
+    'EPS',
+    'Exchange',
+    'Ric',
+    'Standard Statement',
+]
+
+
 if __name__ == '__main__':
-    with open('Master_CSV.csv', 'r') as read_obj:
+    with open('../tickers/Master_CSV.csv', 'r') as read_obj:
         csv_reader = DictReader(read_obj)
+        file_name = "Reuters" + ".csv"
         for row in csv_reader:
             if get_ric(row['Name']) != "None":
                 n = get_ric(row['Name'])
@@ -391,4 +403,5 @@ if __name__ == '__main__':
                 print("Get EPS: ", get_ttm_eps(n))
                 print("Get Exchange: ", get_exchange(n))
                 print("Get ric: ", get_ric(n))
-                print("Standrat Statement: ", get_standardized_statements(n))
+                print("Standard Statement: ", get_standardized_statements(n))
+
