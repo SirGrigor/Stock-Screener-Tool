@@ -65,7 +65,6 @@ def create_ticker_csv():
 def set_start_columns(csv_index, file_index):
     # Download first file
     # Real_URL
-    print("HEre")
     search_request = prepare_search_configuration(file_index)
     # Real_Request
     file_name = "ALL_CSV/" + "token-csv-" + str(csv_index) + ".csv"
@@ -85,12 +84,11 @@ def merge_csv():
     extension = 'csv'
     all_filenames = [i for i in glob.glob('ALL_CSV/*.{}'.format(extension))]
     all_filenames.sort(key=natural_sort_key)
-    # all_filenames=all_filenames[::-1]
-    # print(all_filenames)
     combined_csv = pd.concat([pd.read_csv(f, names=column_names)[1:] for f in all_filenames])
-    combined_csv.to_csv("reuters/Master_CSV.csv", index=True, encoding='utf-8-sig')
+    combined_csv.to_csv("Master_CSV.csv", index=True, encoding='utf-8-sig')
 
 
 if __name__ == '__main__':
     create_ticker_csv()
     merge_csv()
+
