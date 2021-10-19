@@ -88,7 +88,7 @@ def merge_csv():
     # all_filenames=all_filenames[::-1]
     # print(all_filenames)
     combined_csv = pd.concat([pd.read_csv(f, names=column_names)[1:] for f in all_filenames])
-    combined_csv.to_csv("Master_CSV.csv", index=True, encoding='utf-8-sig')
+    combined_csv.to_csv("reuters/Master_CSV.csv", index=True, encoding='utf-8-sig')
 
 
 if __name__ == '__main__':
