@@ -1,16 +1,14 @@
-from _csv import reader
+import json
 from csv import DictReader
-
-import pandas as pd
 import requests
 import time
 from bs4 import BeautifulSoup
+import pandas as pd
 
 BALANCE_SHEET_URL = 'https://www.reuters.com/companies/api/getFetchCompanyFinancials/{TICKER}'
 
 
 def get_item(item_list, item, new_key=''):
-    # print(item)
     if new_key == '':
         new_key = item
 
@@ -33,8 +31,11 @@ def get_item(item_list, item, new_key=''):
 
 
 def get_IS_item(json, item, new_key=''):
-    item_list = json['income']['interim']
-    result = get_item(item_list, item, new_key)
+    try:
+        item_list = json['income']['interim']
+        result = get_item(item_list, item, new_key)
+    except KeyError:
+        return "Not Found"
     return result
 
 
@@ -45,8 +46,11 @@ def get_BS_item(json, item, new_key=''):
 
 
 def get_CF_item(json, item, new_key=''):
-    item_list = json['cash_flow']['interim']
-    result = get_item(item_list, item, new_key)
+    try:
+        item_list = json['cash_flow']['interim']
+        result = get_item(item_list, item, new_key)
+    except KeyError:
+        return "Not Found"
     return result
 
 
@@ -54,8 +58,6 @@ def get_standardized_statements(ticker='6414.T'):
     request_url = BALANCE_SHEET_URL.replace('{TICKER}', ticker)
     response = requests.get(request_url)
     json = response.json()
-
-    print('Fetched JSON...')
 
     try:
         if 'rcom_service_message' in json:
@@ -90,8 +92,6 @@ def get_standardized_statements(ticker='6414.T'):
             # raise KeyError
             pass
 
-    ''' IS '''
-    print('Fetching IS...')
     # Revenues
     revenue_data = get_IS_item(statements, 'Total Revenue', 'revenues')
     # COGS
@@ -116,9 +116,6 @@ def get_standardized_statements(ticker='6414.T'):
     net_income_data = get_IS_item(statements, 'Net Income', 'net_income')
     # Shares outstanding
     shares_outstanding_data = get_IS_item(statements, 'Diluted Weighted Average Shares', 'shares_outstanding')
-
-    ''' BS '''
-    print('Fetching BS...')
     # Cash, Equivalents, and Short-term Investments
     cash_eq_data = get_BS_item(statements, 'Cash and Short Term Investments', 'cash_and_equivalents')
     # Receivables
@@ -159,8 +156,6 @@ def get_standardized_statements(ticker='6414.T'):
     # Total Liabilities
     total_liabilities_data = get_BS_item(statements, 'Total Liabilities', 'total_liabilities')
 
-    ''' CF '''
-    print('Fetching CF...')
     if 'cash_flow' in statements:
         # Net Income
         net_income_cf_data = get_CF_item(statements, 'Net Income/Starting Line', 'net_income_starting_line')
@@ -197,7 +192,6 @@ def get_standardized_statements(ticker='6414.T'):
         # Net Change in Cash
         net_change_in_cash_data = get_CF_item(statements, 'Net Change in Cash', 'net_change_in_cash')
 
-    ''' Process above financial statement data into good format '''
     financial_statements_data_array = [
         revenue_data,
         cogs_data,
@@ -270,7 +264,6 @@ def get_standardized_statements(ticker='6414.T'):
                 standardized_financial_data[date] = {}
             standardized_financial_data[date][key] = value
 
-    # put 0's in for bad entries
     for entry in bad_entries:
         for date in list(standardized_financial_data.keys()):
             standardized_financial_data[date][entry] = 0
@@ -283,30 +276,6 @@ def get_standardized_statements(ticker='6414.T'):
             print(report['total_assets'])
             print(report)
             report['equity'] = report['total_assets'] - report['total_liabilities']
-
-        # D&A = D+A
-        '''
-        if report['depreciation_amortization'] == 0:
-            depreciation = report['depreciation_and_depletion']
-            amortization = report['amortization_and_noncash_items']
-            report['depreciation_amortization'] = depreciation + amortization
-        '''
-
-    '''
-    Structure:
-        {
-            'DATE1':
-            {
-                'ITEM': VALUE, 
-                ...
-            }, 
-            'DATE2':
-            {
-                'ITEM': VALUE, 
-                ...
-            }
-        }
-    '''
 
     return standardized_financial_data
 
@@ -365,8 +334,6 @@ def get_exchange(ticker):
 
 # determine Reuters code
 def get_ric(stock_data):
-    # hit reuters/yahoo with company name + ticker
-    # reuters_url = f'https://www.reuters.com/finance/stocks/lookup?searchType=any&search={stock_data["name"]}'
     reuters_url = f'https://www.reuters.com/finance/stocks/lookup?searchType=any&search={stock_data}'
     resp = requests.get(reuters_url).content
 
@@ -387,21 +354,28 @@ column_names = [
     'EPS',
     'Exchange',
     'Ric',
-    'Standard Statement',
+    'Statement'
 ]
 
-
 if __name__ == '__main__':
+    temp_store = {col: [] for col in column_names}
     with open('../tickers/Master_CSV.csv', 'r') as read_obj:
         csv_reader = DictReader(read_obj)
         file_name = "Reuters" + ".csv"
+        counter = 0
         for row in csv_reader:
             if get_ric(row['Name']) != "None":
                 n = get_ric(row['Name'])
-                print("Price: ", get_price(n))
-                print("Description: ", get_description(n))
-                print("Get EPS: ", get_ttm_eps(n))
-                print("Get Exchange: ", get_exchange(n))
-                print("Get ric: ", get_ric(n))
-                print("Standard Statement: ", get_standardized_statements(n))
+                temp_store['Price'].append(get_price(n))
+                temp_store['Description'].append(get_description(n))
+                temp_store['EPS'].append(get_ttm_eps(n))
+                temp_store['Exchange'].append(get_exchange(n))
+                temp_store['Ric'].append(get_ric(n))
+                temp_store['Statement'].append(get_standardized_statements(n))
 
+            counter += 1
+            if counter == 10:
+                break
+
+df = pd.DataFrame(temp_store)
+df.to_csv("reuters_output.csv")
